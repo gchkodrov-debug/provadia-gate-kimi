@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>THE GATE OF PROVADIA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --field: #141210;
+      --gold: #C9A227;
+      --pale-gold: #FFEFC1;
+      --salt: #F4EFE6;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--field);
+    }
+    body {
+      font-family: "Inter", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    #scene, #scene canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #scene canvas { touch-action: manipulation; }
+    .vignette {
+      position: fixed;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 36%, rgba(20,18,16,.22) 65%, rgba(20,18,16,.88) 112%);
+    }
+    #hud {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.4s ease;
+    }
+    #hud.visible { opacity: 1; }
+    .brand {
+      position: absolute;
+      top: max(32px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: 94vw;
+      text-align: center;
+    }
+    .brand h1 {
+      margin: 0;
+      color: var(--pale-gold);
+      font-family: "Cinzel", serif;
+      font-size: clamp(27px, 3.3vw, 48px);
+      font-weight: 500;
+      line-height: 1.1;
+      letter-spacing: .29em;
+      text-indent: .29em;
+      text-shadow: 0 2px 24px rgba(201,162,38,.18);
+    }
+    .brand p {
+      margin: 12px 0 0;
+      color: rgba(244,239,230,.72);
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: .23em;
+      text-indent: .23em;
+      white-space: nowrap;
+    }
+    .wall-status {
+      position: absolute;
+      left: 34px;
+      bottom: max(31px, env(safe-area-inset-bottom));
+    }
+    .wall-status h2 {
+      margin: 0 0 8px;
+      color: var(--pale-gold);
+      font-family: "Cinzel", serif;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: .19em;
+    }
+    .wall-status p {
+      margin: 0;
+      color: rgba(244,239,230,.67);
+      font-size: 11px;
+      letter-spacing: .06em;
+    }
+    .flip-wrap {
+      position: absolute;
+      left: 50%;
+      bottom: max(27px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+    }
+    #flip {
+      appearance: none;
+      border: 1px solid var(--gold);
+      border-radius: 999px;
+      padding: 13px 25px 12px;
+      background: rgba(20,18,16,.55);
+      color: var(--pale-gold);
+      font-family: "Inter", sans-serif;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .2em;
+      text-indent: .2em;
+      white-space: nowrap;
+      cursor: pointer;
+      pointer-events: auto;
+      touch-action: manipulation;
+      transition: background .25s ease, box-shadow .25s ease;
+    }
+    #flip:hover {
+      background: rgba(201,162,38,.12);
+      box-shadow: 0 0 25px rgba(201,162,38,.12);
+    }
+    #flip:focus-visible {
+      outline: 2px solid var(--pale-gold);
+      outline-offset: 4px;
+    }
+    .hint {
+      position: absolute;
+      right: 34px;
+      bottom: max(40px, env(safe-area-inset-bottom));
+      margin: 0;
+      color: rgba(244,239,230,.57);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: .21em;
+    }
+    #fade {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none;
+      background: var(--field);
+      animation: clear-fade 2.6s ease-out both;
+    }
+    @keyframes clear-fade {
+      0%, 8% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    @media (max-width: 700px) {
+      .brand { top: max(25px, env(safe-area-inset-top)); }
+      .brand h1 { font-size: clamp(25px, 8vw, 34px); letter-spacing: .2em; text-indent: .2em; }
+      .brand p { margin-top: 9px; font-size: 8px; letter-spacing: .13em; text-indent: .13em; }
+      .wall-status { left: 20px; bottom: max(91px, calc(env(safe-area-inset-bottom) + 77px)); }
+      .wall-status h2 { font-size: 11px; margin-bottom: 6px; }
+      .wall-status p { font-size: 10px; }
+      .flip-wrap { bottom: max(25px, env(safe-area-inset-bottom)); }
+      #flip { padding: 12px 21px 11px; font-size: 9px; }
+      .hint { right: 20px; bottom: max(103px, calc(env(safe-area-inset-bottom) + 89px)); font-size: 8px; }
+    }
+    @media (max-width: 390px) {
+      .brand p { font-size: 7px; letter-spacing: .09em; text-indent: .09em; }
+      .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="scene" aria-hidden="true"></div>
+  <div class="vignette"></div>
+
+  <main id="hud">
+    <header class="brand">
+      <h1>PROVADIA</h1>
+      <p>THE GATE · EUROPE'S FIRST TOWN OF RECORD</p>
+    </header>
+    <section class="wall-status">
+      <h2>THE GOLDEN WALL</h2>
+      <p>0 / 47 bricks laid · one is waiting</p>
+    </section>
+    <div class="flip-wrap">
+      <button id="flip" type="button" aria-label="Flip the coin">FLIP THE COIN</button>
+    </div>
+    <p class="hint">TAP THE COIN</p>
+  </main>
+  <div id="fade"></div>
+
+  <script type="module">
+    import * as THREE from './three.module.min.js';
+
+    const COLORS = {
+      field: 0x141210,
+      gold: 0xC9A227,
+      paleGold: 0xFFEFC1,
+      deepGold: 0x6B4A12,
+      shadowGold: 0x3D2A08,
+      salt: 0xF4EFE6
+    };
+
+    const container = document.getElementById('scene');
+    const hud = document.getElementById('hud');
+    const flipButton = document.getElementById('flip');
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(COLORS.field);
+    scene.fog = new THREE.FogExp2(COLORS.field, 0.028);
+
+    const camera = new THREE.PerspectiveCamera(43, window.innerWidth / window.innerHeight, 0.1, 100);
+
+    const key = new THREE.DirectionalLight(COLORS.paleGold, 3.1);
+    key.position.set(-7, 11, 10);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.camera.left = -12;
+    key.shadow.camera.right = 12;
+    key.shadow.camera.top = 14;
+    key.shadow.camera.bottom = -5;
+    // Exclude the nearby gate from the shadow frustum so it cannot band the coin.
+    key.shadow.camera.near = 9;
+    key.shadow.camera.far = 45;
+    key.shadow.bias = -0.0004;
+    key.shadow.normalBias = 0.025;
+    key.target.position.set(0, 2.1, 0);
+    scene.add(key, key.target);
+
+    const hemisphere = new THREE.HemisphereLight(COLORS.salt, COLORS.field, 0.24);
+    scene.add(hemisphere);
+
+    const ember = new THREE.PointLight(COLORS.gold, 2.2, 9, 2);
+    ember.position.set(0, 2.4, 1.6);
+    scene.add(ember);
+
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(42, 96),
+      new THREE.MeshStandardMaterial({ color: COLORS.field, roughness: 0.98, metalness: 0.02 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.62;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // THE GOLDEN WALL: 47 outlined slots, arranged 12 / 12 / 12 / 11.
+    const wallCanvas = document.createElement('canvas');
+    wallCanvas.width = 2048;
+    wallCanvas.height = 768;
+    const ctx = wallCanvas.getContext('2d');
+    ctx.fillStyle = '#141210';
+    ctx.fillRect(0, 0, 2048, 768);
+    const wallGlow = ctx.createRadialGradient(1024, 370, 40, 1024, 370, 1080);
+    wallGlow.addColorStop(0, 'rgba(61,42,8,0.42)');
+    wallGlow.addColorStop(0.55, 'rgba(61,42,8,0.12)');
+    wallGlow.addColorStop(1, 'rgba(20,18,16,0)');
+    ctx.fillStyle = wallGlow;
+    ctx.fillRect(0, 0, 2048, 768);
+
+    const rowCounts = [12, 12, 12, 11];
+    const brickSlots = [];
+    const gapX = 20;
+    const gapY = 42;
+    const brickH = 104;
+    const brickW = (2048 - 164 - gapX * 11) / 12;
+    const firstRowY = (768 - (brickH * 4 + gapY * 3)) / 2;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(201,162,38,0.25)';
+    ctx.fillStyle = 'rgba(107,74,18,0.045)';
+
+    rowCounts.forEach((count, row) => {
+      const rowWidth = count * brickW + (count - 1) * gapX;
+      const startX = (2048 - rowWidth) / 2;
+      const y = firstRowY + row * (brickH + gapY);
+      for (let col = 0; col < count; col++) {
+        const x = startX + col * (brickW + gapX);
+        ctx.fillRect(x, y, brickW, brickH);
+        ctx.strokeRect(x + 1, y + 1, brickW - 2, brickH - 2);
+        brickSlots.push({ x, y, w: brickW, h: brickH, cx: x + brickW / 2, cy: y + brickH / 2 });
+      }
+    });
+
+    const wallTexture = new THREE.CanvasTexture(wallCanvas);
+    wallTexture.colorSpace = THREE.SRGBColorSpace;
+    wallTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const wallWidth = 27;
+    const wallHeight = 10.1;
+    const wallY = 4.43;
+    const wall = new THREE.Mesh(
+      new THREE.PlaneGeometry(wallWidth, wallHeight),
+      new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.87, metalness: 0.12 })
+    );
+    wall.position.set(0, wallY, -8.5);
+    wall.receiveShadow = true;
+    scene.add(wall);
+
+    const firstSlot = brickSlots[0];
+    const waitingW = firstSlot.w / 2048 * wallWidth;
+    const waitingH = firstSlot.h / 768 * wallHeight;
+    const waitingX = (firstSlot.cx / 2048 - 0.5) * wallWidth;
+    const waitingY = wallY + (0.5 - firstSlot.cy / 768) * wallHeight;
+    const waitingBrick = new THREE.Group();
+    waitingBrick.position.set(waitingX, waitingY, -8.465);
+    const waitingFill = new THREE.Mesh(
+      new THREE.PlaneGeometry(waitingW, waitingH),
+      new THREE.MeshBasicMaterial({
+        color: COLORS.gold,
+        transparent: true,
+        opacity: 0.06,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      })
+    );
+    const waitingOutline = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.PlaneGeometry(waitingW, waitingH)),
+      new THREE.LineBasicMaterial({ color: COLORS.paleGold, transparent: true, opacity: 0.65 })
+    );
+    waitingOutline.position.z = 0.008;
+    waitingBrick.add(waitingFill, waitingOutline);
+    scene.add(waitingBrick);
+
+    // THE GATE at z = 7.
+    const gate = new THREE.Group();
+    const stone = new THREE.MeshStandardMaterial({
+      color: COLORS.field,
+      roughness: 0.91,
+      metalness: 0.09
+    });
+    const trim = new THREE.MeshStandardMaterial({
+      color: COLORS.gold,
+      emissive: COLORS.deepGold,
+      emissiveIntensity: 0.22,
+      roughness: 0.32,
+      metalness: 0.58
+    });
+
+    function gateBox(w, h, d, x, y, z, material = stone) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+      mesh.position.set(x, y, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      gate.add(mesh);
+      return mesh;
+    }
+
+    [-1, 1].forEach(side => {
+      const x = side * 4.1;
+      gateBox(1.5, 8.6, 1.5, x, 3.68, 7);
+      gateBox(1.82, 0.3, 1.82, x, -0.47, 7);
+      gateBox(1.84, 0.36, 1.84, x, 8.16, 7);
+      gateBox(1.58, 0.055, 1.58, x, 7.99, 7, trim);
+      gateBox(0.045, 7.45, 0.045, side * 3.37, 3.7, 7.77, trim);
+    });
+    gateBox(10, 0.72, 1.72, 0, 8.62, 7);
+    gateBox(10.08, 0.065, 1.78, 0, 8.26, 7, trim);
+    gateBox(10.08, 0.065, 1.78, 0, 9.01, 7, trim);
+    scene.add(gate);
+
+    // THE COIN: all relief is geometry, with no text or letters.
+    const coin = new THREE.Group();
+    coin.position.set(0, 2.35, 0);
+    const gold = new THREE.MeshStandardMaterial({
+      color: COLORS.gold,
+      emissive: COLORS.shadowGold,
+      emissiveIntensity: 0.2,
+      metalness: 0.76,
+      roughness: 0.29
+    });
+    const reliefGold = new THREE.MeshStandardMaterial({
+      color: COLORS.gold,
+      emissive: COLORS.shadowGold,
+      emissiveIntensity: 0.16,
+      metalness: 0.69,
+      roughness: 0.32
+    });
+    const paleGold = new THREE.MeshStandardMaterial({
+      color: COLORS.paleGold,
+      emissive: COLORS.deepGold,
+      emissiveIntensity: 0.13,
+      metalness: 0.67,
+      roughness: 0.26
+    });
+
+    const coinBodyGeometry = new THREE.CylinderGeometry(2, 2, 0.36, 96, 1, false);
+    coinBodyGeometry.rotateX(Math.PI / 2);
+    const coinBody = new THREE.Mesh(coinBodyGeometry, gold);
+    coinBody.castShadow = true;
+    coinBody.receiveShadow = true;
+    coin.add(coinBody);
+
+    const front = new THREE.Group();
+    const frontBrickGeometry = new THREE.BoxGeometry(0.39, 0.21, 0.085);
+    for (let course = 0; course < 5; course++) {
+      const count = course % 2 === 0 ? 5 : 6;
+      for (let i = 0; i < count; i++) {
+        const brick = new THREE.Mesh(frontBrickGeometry, reliefGold);
+        brick.position.set((i - (count - 1) / 2) * 0.45, -0.82 + course * 0.29, 0.2325);
+        brick.castShadow = true;
+        front.add(brick);
+      }
+    }
+
+    const merlonGeometry = new THREE.BoxGeometry(0.3, 0.24, 0.085);
+    for (let i = 0; i < 7; i++) {
+      const angle = THREE.MathUtils.degToRad(40 + i * (100 / 6));
+      const merlon = new THREE.Mesh(merlonGeometry, reliefGold);
+      merlon.position.set(Math.cos(angle) * 1.5, Math.sin(angle) * 1.5, 0.2325);
+      merlon.rotation.z = angle - Math.PI / 2;
+      merlon.castShadow = true;
+      front.add(merlon);
+    }
+
+    const beadGeometry = new THREE.SphereGeometry(0.047, 10, 8);
+    for (let i = 0; i < 47; i++) {
+      const angle = i / 47 * Math.PI * 2;
+      const bead = new THREE.Mesh(beadGeometry, paleGold);
+      bead.position.set(Math.cos(angle) * 1.76, Math.sin(angle) * 1.76, 0.225);
+      front.add(bead);
+    }
+    coin.add(front);
+
+    const back = new THREE.Group();
+    const sun = new THREE.Mesh(
+      new THREE.CircleGeometry(0.56, 64),
+      new THREE.MeshStandardMaterial({
+        color: COLORS.gold,
+        emissive: COLORS.gold,
+        emissiveIntensity: 0.48,
+        metalness: 0.55,
+        roughness: 0.35,
+        side: THREE.FrontSide
+      })
+    );
+    sun.rotation.y = Math.PI;
+    sun.position.z = -0.202;
+    back.add(sun);
+
+    [0.74, 1.02, 1.30].forEach((radius, i) => {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.025 - i * 0.003, 10, 96),
+        reliefGold
+      );
+      ring.position.z = -0.225;
+      back.add(ring);
+    });
+
+    for (let i = 0; i < 47; i++) {
+      const angle = i / 47 * Math.PI * 2;
+      const bead = new THREE.Mesh(beadGeometry, paleGold);
+      bead.position.set(Math.cos(angle) * 1.76, Math.sin(angle) * 1.76, -0.225);
+      back.add(bead);
+    }
+    coin.add(back);
+    scene.add(coin);
+
+    // Soft, round salt-dust sprites.
+    const dustCanvas = document.createElement('canvas');
+    dustCanvas.width = 64;
+    dustCanvas.height = 64;
+    const dustCtx = dustCanvas.getContext('2d');
+    const dustGradient = dustCtx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    dustGradient.addColorStop(0, 'rgba(244,239,230,1)');
+    dustGradient.addColorStop(0.22, 'rgba(244,239,230,0.85)');
+    dustGradient.addColorStop(0.58, 'rgba(244,239,230,0.22)');
+    dustGradient.addColorStop(1, 'rgba(244,239,230,0)');
+    dustCtx.fillStyle = dustGradient;
+    dustCtx.fillRect(0, 0, 64, 64);
+    const dustTexture = new THREE.CanvasTexture(dustCanvas);
+
+    let seed = 47;
+    function random() {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 4294967296;
+    }
+
+    const dustCount = 380;
+    const dustPositions = new Float32Array(dustCount * 3);
+    const dustSpeeds = new Float32Array(dustCount);
+    for (let i = 0; i < dustCount; i++) {
+      dustPositions[i * 3] = (random() - 0.5) * 24;
+      dustPositions[i * 3 + 1] = -0.45 + random() * 11.5;
+      dustPositions[i * 3 + 2] = -9 + random() * 37;
+      dustSpeeds[i] = 0.018 + random() * 0.04;
+    }
+    const dustGeometry = new THREE.BufferGeometry();
+    const dustAttribute = new THREE.BufferAttribute(dustPositions, 3);
+    dustAttribute.setUsage(THREE.DynamicDrawUsage);
+    dustGeometry.setAttribute('position', dustAttribute);
+    const dust = new THREE.Points(
+      dustGeometry,
+      new THREE.PointsMaterial({
+        color: COLORS.salt,
+        size: 0.075,
+        map: dustTexture,
+        transparent: true,
+        opacity: 0.58,
+        alphaTest: 0.01,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
+      })
+    );
+    scene.add(dust);
+
+    const flightPath = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 3.55, 31),
+      new THREE.Vector3(-0.65, 3.08, 19),
+      new THREE.Vector3(0.3, 2.62, 10),
+      new THREE.Vector3(0, 2.55, 7),
+      new THREE.Vector3(0, 2.65, 6.4)
+    ], false, 'catmullrom', 0.5);
+
+    const query = new URLSearchParams(window.location.search);
+    let frozenShot = null;
+    if (query.has('shot')) {
+      const requestedShot = Number(query.get('shot'));
+      if (Number.isFinite(requestedShot)) {
+        frozenShot = THREE.MathUtils.clamp(requestedShot, 0, 1);
+      }
+    }
+
+    function smootherstep(value) {
+      const t = THREE.MathUtils.clamp(value, 0, 1);
+      return t * t * t * (t * (t * 6 - 15) + 10);
+    }
+
+    let flipping = false;
+    let flipStarted = 0;
+    let flipFrom = 0;
+    let flipTarget = 0;
+    let flipAngle = 0;
+
+    function flipCoin() {
+      if (flipping) return;
+      flipping = true;
+      flipStarted = performance.now() / 1000;
+      flipFrom = flipAngle;
+      flipTarget = flipAngle + Math.PI;
+    }
+
+    renderer.domElement.addEventListener('click', flipCoin);
+    flipButton.addEventListener('click', event => {
+      event.stopPropagation();
+      flipCoin();
+    });
+
+    function resize() {
+      const width = Math.max(1, window.innerWidth);
+      const height = Math.max(1, window.innerHeight);
+      camera.aspect = width / height;
+      camera.fov = camera.aspect < 0.72 ? 50 : 43;
+      camera.updateProjectionMatrix();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setSize(width, height);
+    }
+    window.addEventListener('resize', resize, { passive: true });
+    resize();
+
+    const startTime = performance.now();
+    let previousTime = startTime;
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+      const elapsed = (now - startTime) / 1000;
+      const delta = Math.min(Math.max((now - previousTime) / 1000, 0), 0.05);
+      previousTime = now;
+      const absoluteTime = now / 1000;
+
+      const rawProgress = frozenShot === null ? Math.min(elapsed / 10.5, 1) : frozenShot;
+      const progress = smootherstep(rawProgress);
+      camera.position.copy(flightPath.getPoint(progress));
+      if (rawProgress >= 1) {
+        camera.position.x += Math.sin(elapsed * 0.42) * 0.05;
+        camera.position.y += Math.sin(elapsed * 0.34) * 0.028;
+      }
+      camera.lookAt(coin.position);
+      hud.classList.toggle('visible', progress > 0.86);
+
+      coin.position.y = 2.35 + Math.sin(elapsed * 0.85) * 0.035;
+      if (flipping) {
+        const flipProgress = Math.min((absoluteTime - flipStarted) / 1.5, 1);
+        flipAngle = THREE.MathUtils.lerp(flipFrom, flipTarget, smootherstep(flipProgress));
+        if (flipProgress >= 1) {
+          flipAngle = flipTarget;
+          flipping = false;
+        }
+      }
+      coin.rotation.y = flipAngle + Math.sin(elapsed * 0.45) * 0.025;
+      coin.rotation.z = Math.sin(elapsed * 0.6) * 0.016;
+
+      const waitingPulse = 0.5 + 0.5 * Math.sin(elapsed * 2.2);
+      waitingFill.material.opacity = 0.025 + waitingPulse * 0.065;
+      waitingOutline.material.opacity = 0.28 + waitingPulse * 0.58;
+      ember.intensity = 2.2 + Math.sin(elapsed * 1.7) * 0.3;
+
+      for (let i = 0; i < dustCount; i++) {
+        const index = i * 3;
+        dustPositions[index + 1] += dustSpeeds[i] * delta;
+        dustPositions[index] += Math.sin(elapsed * 0.22 + i) * delta * 0.002;
+        if (dustPositions[index + 1] > 11.05) {
+          dustPositions[index + 1] = -0.45;
+        }
+      }
+      dustAttribute.needsUpdate = true;
+
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
